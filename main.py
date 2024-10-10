@@ -37,11 +37,30 @@ def get_user_input():
 def get_disease_info(disease_id, graph):
     query = """
         MATCH (d:Disease {id: $disease_id})
-        RETURN d.name
-    """
+        OPTIONAL MATCH (drug:Compound) -[rel] -(d)
+        WHERE type(rel) = 'treats_CtD' or type(rel) = 'palliates_CpD'
+        OPTIONAL MATCH (gene:Gene) - [rel2] - (d)
+        WHERE type(rel2) = 'associates_DaG'
+        OPTIONAL MATCH (location:Anatomy) - [rel3] - (d)
+        WHERE type(rel3) = 'localizes_DlA'
+        RETURN d.name AS Disease,
+            COLLECT (DISTINCT drug.name) AS Drug_names,
+            COLLECT (DISTINCT gene.name) AS Gene_names,
+            COLLECT (DISTINCT location.name) AS locations
 
-    result = graph.run(query, disease_id = disease_id).data()
-    print(result)
+    """
+    result = graph.run(query, disease_id=disease_id).data()
+    if result:
+            disease_info = result[0]
+            print(f"Disease Name: {disease_info['Disease']}")
+            print("\nDrug Names (can treat or palliate):")
+            print(", ".join(disease_info['Drug_names']) if disease_info['Drug_names'] else "None")
+
+            print("\nGene Names (associated with disease):")
+            print(", ".join(disease_info['Gene_names']) if disease_info['Gene_names'] else "None")
+
+            print("\nLocations (where disease occurs):")
+            print(", ".join(disease_info['locations']) if disease_info['locations'] else "None")
 
 if __name__== "__main__":
     start()
