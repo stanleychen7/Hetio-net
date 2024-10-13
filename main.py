@@ -1,7 +1,7 @@
 import sys
 from py2neo import Graph
 
-def start():
+def main():
     graph = None
     while True:
         user_input = input ("Enter 1 to start, 2 to exit: ")
@@ -11,6 +11,7 @@ def start():
                 while True:
                     disease_id = get_user_input()
                     get_disease_info(disease_id, graph)
+                    find_new_treatments(disease_id, graph)
                     another_input = input("Enter another disease ID? (y/n): ")
                     if another_input.lower() != 'y':
                         break
@@ -61,6 +62,52 @@ def get_disease_info(disease_id, graph):
 
             print("\nLocations (where disease occurs):")
             print(", ".join(disease_info['locations']) if disease_info['locations'] else "None")
+    else:
+        print("No disease found")
+
+
+def find_new_treatments(disease_id, graph):
+    try:
+        # Print disease ID to ensure it's passed correctly
+        print(f"Finding new treatments for disease ID: {disease_id}")
+
+        query = """
+            MATCH (d:Disease{id: $disease_id}) - [:downregulates_DdG] -> (gene:Gene)
+            OPTIONAL MATCH (drug:Compound) - [rel] - (gene)
+            WHERE type(rel) = 'upregulates_CuG' OR type(rel) = 'downregulates_CdG'
+            OPTIONAL MATCH (d) - [:localizes_DlA] - (anatomy:Anatomy) - [anatomyRel] - (gene)
+            WHERE type(anatomyRel) = 'upregulates_AuG' OR type(anatomyRel) = 'downregulates_AdG'
+
+            WITH drug, d, gene, rel, anatomyRel,
+            CASE
+                WHEN type(rel) = 'downregulates_CdG' AND type(anatomyRel) = 'upregulates_AuG' THEN 1
+                WHEN type(rel) = 'upregulates_CuG' AND type(anatomyRel) = 'downregulates_AdG' THEN 1
+                ELSE 0
+            END AS oppositeRegulation
+
+            WHERE oppositeRegulation = 1
+            AND NOT (drug) - [:treats_CtD] - (d)
+            AND NOT (drug) - [:palliates_CpD] - (d)
+
+            RETURN DISTINCT drug.name AS treatment_name, drug.id AS treatment_id
+        """
+        
+        # Run the query and fetch data
+        result = graph.run(query, disease_id=disease_id).data()
+        
+        # Check if results exist
+        if result:
+            print(f"\nNew potential treatments for disease ID {disease_id}:")
+            for i, treatment in enumerate(result, 1):
+                print(f"{i}. Treatment: {treatment['treatment_name']}, ID: {treatment['treatment_id']}")
+        else:
+            print("No new potential treatments found.")
+
+    except Exception as e:
+        # Catch any exceptions and print an error message
+        print(f"An error occurred: {e}")
+
+
 
 if __name__== "__main__":
-    start()
+    main()
