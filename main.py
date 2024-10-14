@@ -1,5 +1,6 @@
 import sys
 from py2neo import Graph
+import tkinter as tk
 
 def main():
     graph = None
@@ -111,3 +112,13 @@ def find_new_treatments(disease_id, graph):
 
 if __name__== "__main__":
     main()
+
+
+#WINDOW GUI
+# GUI Setup
+window = tk.Tk()
+window.title("HetioNet Disease Information and Treatment Finder")
+window.geometry("600x400")
+
+
+window.mainloop()
